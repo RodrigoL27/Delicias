@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+    <link rel="shortcut icon" href="/image.png" type="image/x-icon">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: rgba(240, 207, 183, 0.38)
+        }
+
+        .img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            padding: 20px; 
+        }
+
+        img {
+            width: 150px; 
+        }
+
+    
+        .form-container {
+            margin-top: 80px; 
+            text-align: center;
+        }
+
+
+        h2 {
+            color: #327c6e;
+            margin-bottom: 30px;
+        }
+
+        form {
+            display: inline-block;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Estilo para las etiquetas del formulario */
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        /* Estilo para los campos del formulario */
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        
+        button {
+            background-color: #327c6e;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #f53100;
+        }
+
+        iframe {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 350px;
+            height: 220px;
+            border: none;
+            padding: 20px;
+        }
+    </style>
+</head> 
+<body>
+    <div class="img"><img src="/image.png" alt="Logo"></div>
+    <div class="form-container">
+        <h2>Bienvenido a D'licias</h2>
+        <form action="/login" method="POST">
+            <label for="username">Nombre de usuario:</label>
+            <input type="text" id="username" name="username" required>
+            <br>
+            <label for="password">Contraseña:</label>
+            <input type="password" id="password" name="password" required>
+            <br>
+            <button type="submit">Acceso</button>
+        </form>
+    </div>
+    <iframe src="https://www.youtube.com/embed/CE99v6Tt65w?autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</body>
+</html>
