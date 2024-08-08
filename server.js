@@ -13,10 +13,10 @@ app.use(bodyParser.json());
 
 // Configura la conexión a la base de datos
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'sistema'
+    host: 'fdb1027.runhosting.com',
+    user: '4514958_sistema',
+    password: 'delicias1',
+    database: '4514958_sistemaa'
 });
 
 db.connect((err) => {
