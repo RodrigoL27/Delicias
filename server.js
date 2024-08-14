@@ -13,11 +13,11 @@ app.use(bodyParser.json());
 
 // Configura la conexión a la base de datos
 const db = mysql.createConnection({
-  host: 'blb6ywtxsd36c0o6mgqy-mysql.services.clever-cloud.com',  // Verifica este valor
-  user: 'ukzcgoa53a2cql7h',
-  password: 'UcaSSP9O7sv5Rq8knpUr',
-  database: 'blb6ywtxsd36c0o6mgqy'
-});
+    host: 'blb6ywtxsd36c0o6mgqy-mysql.services.clever-cloud.com',  // Verifica este valor
+    user: 'ukzcgoa53a2cql7h',
+    password: 'UcaSSP9O7sv5Rq8knpUr',
+    database: 'blb6ywtxsd36c0o6mgqy'
+  });
 
 db.connect((err) => {
     if (err) {
@@ -299,6 +299,26 @@ app.get('/admin/register', (req, res) => {
         `);
     });
 });
+
+// Ruta para manejar la inserción de nuevos usuarios
+app.post('/admin/register', (req, res) => {
+    const { username, password, role } = req.body;
+
+    if (!username || !password || !role) {
+        return res.status(400).send('Faltan campos requeridos.');
+    }
+
+    const query = 'INSERT INTO usuarios (username, password, role) VALUES (?, ?, ?)';
+    db.query(query, [username, password, role], (err, result) => {
+        if (err) {
+            console.error('Error al registrar el usuario:', err);
+            return res.status(500).send('Error al registrar el usuario.');
+        }
+        res.redirect('/admin/register');
+    });
+});
+
+// Ruta para mostrar el formulario de edición de usuario
 app.get('/admin/edit/:id', (req, res) => {
     const userId = req.params.id;
 
@@ -427,6 +447,25 @@ app.get('/admin/edit/:id', (req, res) => {
             </body>
             </html>
         `);
+    });
+});
+
+// Ruta para manejar la actualización de usuarios
+app.post('/admin/edit/:id', (req, res) => {
+    const userId = req.params.id;
+    const { username, password, role } = req.body;
+
+    if (!username || !password || !role) {
+        return res.status(400).send('Faltan campos requeridos.');
+    }
+
+    const query = 'UPDATE usuarios SET username = ?, password = ?, role = ? WHERE id = ?';
+    db.query(query, [username, password, role, userId], (err, result) => {
+        if (err) {
+            console.error('Error al actualizar el usuario:', err);
+            return res.status(500).send('Error al actualizar el usuario.');
+        }
+        res.redirect('/admin/register');
     });
 });
 app.get('/admin/delete/:id', (req, res) => {
