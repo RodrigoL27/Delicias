@@ -13,10 +13,10 @@ app.use(bodyParser.json());
 
 // Configura la conexión a la base de datos
 const db = mysql.createConnection({
-host: 'mysql.railway.internal',  // Verifica este valor
-  user: 'root',
-  password: 'lPVhzANgUkYAGGfUuPHzDkKaQswoPYAX',
-  database: 'railway'
+  host: 'blb6ywtxsd36c0o6mgqy-mysql.services.clever-cloud.com',  // Verifica este valor
+  user: 'ukzcgoa53a2cql7h',
+  password: 'UcaSSP9O7sv5Rq8knpUr',
+  database: 'blb6ywtxsd36c0o6mgqy'
 });
 
 db.connect((err) => {
