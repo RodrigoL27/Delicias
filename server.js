@@ -14,9 +14,10 @@ app.use(bodyParser.json());
 // Configura la conexión a la base de datos
 const db = mysql.createConnection({
     host: 'fdb1027.runhosting.com',
-    user: '4514958_sistema',
+    user: '	4514958_sistema',
     password: 'delicias1',
-    database: '4514958_sistemaa'
+    database: '4514958_sistema',
+    port:'3306'
 });
 
 db.connect((err) => {
@@ -1677,4 +1678,4 @@ async function generatePDF(html, res) {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en el puerto ${PORT}`);
-});
+    });
