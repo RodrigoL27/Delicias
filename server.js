@@ -13,11 +13,11 @@ app.use(bodyParser.json());
 
 // Configura la conexión a la base de datos
 const db = mysql.createConnection({
-    host: 'fdb1027.runhosting.com',
-    user: '	4514958_sistema',
-    password: 'delicias1',
-    database: '4514958_sistema',
-    port:'3306'
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: process.env.DB_PORT
 });
 
 db.connect((err) => {
@@ -26,6 +26,14 @@ db.connect((err) => {
     }
     console.log('Conectado a la base de datos');
 });
+db.connect((err) => {
+    if (err) {
+        console.error('Error de conexión: ', err);
+        return;
+    }
+    console.log('Conectado a la base de datos');
+});
+
 
 // Servir el archivo HTML del formulario de login
 app.get('/', (req, res) => {
