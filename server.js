@@ -1089,14 +1089,24 @@ app.post('/vendedor/ventas', (req, res) => {
 
 // Listar ventas
 app.get('/vendedor/ventas/list', (req, res) => {
-    const query = 'SELECT * FROM ventas';
-    db.query(query, (err, results) => {
+    // Obtén el primer y último día del mes actual
+    const now = new Date();
+    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    // Formatea las fechas a 'YYYY-MM-DD' para la consulta SQL
+    const startDate = firstDayOfMonth.toISOString().split('T')[0];
+    const endDate = lastDayOfMonth.toISOString().split('T')[0];
+
+    // Modifica la consulta SQL para filtrar por el mes actual
+    const query = `SELECT * FROM ventas WHERE fecha BETWEEN ? AND ?`;
+    db.query(query, [startDate, endDate], (err, results) => {
         if (err) {
             res.status(500).send('Error al obtener las ventas');
             return;
         }
 
-        let ventasList = '<h2>Lista de Ventas</h2><ul>';
+        let ventasList = '<h2>Lista de Ventas de este Mes</h2><ul>';
         results.forEach(venta => {
             ventasList += `
             <li>ID: ${venta.id} - ${venta.tipo_producto} - ${venta.descripcion} - ${venta.cantidad} - ${venta.precio} MXN - ${venta.total} MXN - ${new Date(venta.fecha).toLocaleString()}
@@ -1165,6 +1175,7 @@ app.get('/vendedor/ventas/list', (req, res) => {
         `);
     });
 });
+
 
 // Editar venta
 app.get('/vendedor/ventas/edit/:id', (req, res) => {
