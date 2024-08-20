@@ -13,10 +13,10 @@ app.use(bodyParser.json());
 
 // Configura la conexión a la base de datos
 const db = mysql.createConnection({
-    host: 'blb6ywtxsd36c0o6mgqy-mysql.services.clever-cloud.com',  // Verifica este valor
-    user: 'ukzcgoa53a2cql7h',
-    password: 'UcaSSP9O7sv5Rq8knpUr',
-    database: 'blb6ywtxsd36c0o6mgqy'
+    host: 'localhost',  // Verifica este valor
+    user: 'root',
+    password: '',
+    database: 'sistema'
   });
 db.connect((err) => {
     if (err) {
@@ -1318,18 +1318,21 @@ app.get('/vendedor/productos/add', (req, res) => {
 // Ruta para procesar la solicitud de agregar un nuevo producto
 app.post('/vendedor/productos/add', (req, res) => {
     const { nombre, precio, categoria } = req.body;
-    
+
+    console.log('Datos recibidos:', { nombre, precio, categoria });
+
     const query = 'INSERT INTO productos (nombre, precio, categoria) VALUES (?, ?, ?)';
     
     db.query(query, [nombre, precio, categoria], (err) => {
         if (err) {
-            console.error('Error al agregar el producto:', err);
+            console.error('Error al agregar el producto:', err.message);
             res.status(500).send('Error al agregar el producto');
             return;
         }
         res.redirect('/vendedor/productos');
     });
 });
+
 // Formulario para editar producto
 app.get('/vendedor/productos/edit/:id', (req, res) => {
     const id = req.params.id;
