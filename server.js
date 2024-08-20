@@ -18,7 +18,6 @@ const db = mysql.createConnection({
     password: 'UcaSSP9O7sv5Rq8knpUr',
     database: 'blb6ywtxsd36c0o6mgqy'
   });
-
 db.connect((err) => {
     if (err) {
         throw err;
@@ -931,7 +930,6 @@ app.get('/vendedor', (req, res) => {
                 <h2>Menú Vendedor</h2>
                 <ul>
                     <li><a class="btn-venta" href="/vendedor/ventas">Registrar Nueva Venta</a></li>
-                    <li><a class="btn-lista" href="/vendedor/ventas/list">Ver Lista de Ventas</a></li>
                     <li><a class="btn-insumos" href="/vendedor/insumos">Registrar Insumos</a></li>
                 </ul>
             </div>
@@ -940,180 +938,505 @@ app.get('/vendedor', (req, res) => {
     `);
 });
 
-//ruta venta VENDEDOR
+
+
+// Mostrar ventas y productos
 app.get('/vendedor/ventas', (req, res) => {
     const today = new Date().toISOString().slice(0, 10);
-    const query = 'SELECT * FROM ventas WHERE DATE(fecha) = ?';
+    const ventasQuery = 'SELECT * FROM ventas WHERE fecha = ?';
+    const productosQuery = 'SELECT * FROM productos';
 
-    db.query(query, [today], (err, results) => {
+    db.query(ventasQuery, [today], (err, ventas) => {
         if (err) {
             res.status(500).send('Error al obtener las ventas');
             return;
         }
 
-        // Generar la tabla de ventas
-        let ventasTable = '<table class="ventas-table"><thead><tr><th>Tipo de Producto</th><th>Descripción</th><th>Cantidad</th><th>Precio</th><th>Fecha y Hora</th></tr></thead><tbody>';
-        results.forEach(venta => {
-            ventasTable += `<tr>
-                                <td>${venta.tipo_producto}</td>
-                                <td>${venta.descripcion}</td>
-                                <td>${venta.cantidad}</td>
-                                <td>${venta.precio}</td>
-                                <td>${new Date(venta.fecha).toLocaleString()}</td>
-                            </tr>`;
-        });
-        ventasTable += '</tbody></table>';
+        db.query(productosQuery, (err, productos) => {
+            if (err) {
+                res.status(500).send('Error al obtener los productos');
+                return;
+            }
 
-        // Enviar el HTML al cliente
-        res.send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Registrar Ventas</title>
-                <link rel="shortcut icon" href="/image.png" type="image/x-icon">
-                <style>
+            // Agrupar productos por categoría
+            const categorias = [
+                'Sandwiches', 'Jochos', 'Aguas', 'Refrescos', 'Comidas',
+                'Jugos', 'Bebidas Calientes', 'Sincronizadas', 'Bebidas Frias',
+                'Sodas Italianas', 'Malteadas', 'Frapes', 'Otros'
+            ];
+            const productosPorCategoria = categorias.reduce((acc, categoria) => {
+                acc[categoria] = productos.filter(p => p.categoria === categoria);
+                return acc;
+            }, {});
 
-                    body {
-                        background-color: rgba(240, 207, 183, 0.38);
-                        color: #327c6e;
-                        font-family: Arial, sans-serif;
-                        margin: 0;
-                        padding: 20px;
-                    }
-                    h2 {
-                        color: #333;
-                    }
-                    form {
-                        background: #fff;
-                        padding: 20px;
-                        border-radius: 5px;
-                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                        margin-bottom: 20px;
-                    }
-                    label {
-                        display: block;
-                        margin-bottom: 8px;
-                    }
-                    input[type="text"], input[type="number"], select {
-                        width: 100%;
-                        padding: 8px;
-                        margin-bottom: 10px;
-                        border: 1px solid #ccc;
-                        border-radius: 4px;
-                    }
-                    button {
-                        background-color: #28a745;
-                        color: #fff;
-                        border: none;
-                        padding: 10px 15px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 16px;
-                    }
-                    button:hover {
-                        background-color: #218838;
-                    }
-                    table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin-top: 20px;
-                        background-color: #fff;
-                        border-radius: 5px;
-                        overflow: hidden;
-                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                    }
-                    th, td {
-                        padding: 10px;
-                        text-align: left;
-                        border-bottom: 1px solid #ddd;
-                    }
-                    th {
-                        background-color: #f4f4f4;
-                    }
-                    tr:hover {
-                        background-color: #f1f1f1;
-                    }
-                    a {
-                        color: #007bff;
-                        text-decoration: none;
-                        margin-left: 10px;
-                    }
-                    a:hover {
-                        text-decoration: underline;
-                    }
-                </style>
-            </head>
-            <body>
-                <h2>Registrar Nueva Venta</h2>
-                <form action="/vendedor/ventas" method="POST">
-                    <label for="tipo_producto">Tipo de Producto:</label>
-                    <select id="tipo_producto" name="tipo_producto" required>
-                        <option value="bebida">Bebida</option>
-                        <option value="comida">Comida</option>
-                    </select>
-                    <br>
-                    <label for="descripcion">Descripción:</label>
-                    <input type="text" id="descripcion" name="descripcion" required>
-                    <br>
-                    <label for="cantidad">Cantidad:</label>
-                    <input type="number" id="cantidad" name="cantidad" required>
-                    <br>
-                    <label for="precio">Precio:</label>
-                    <input type="number" id="precio" name="precio" step="0.01" required>
-                    <br>
-                    <button type="submit">Registrar Venta</button>
+            let ventasList = '<h2>Ventas de Hoy</h2><ul>';
+            ventas.forEach(venta => {
+                ventasList += `
+                <li>ID: ${venta.id} - Nombre: ${venta.nombre_producto} - Cantidad: ${venta.cantidad} - Total: ${venta.total} MXN
+                <form action="/vendedor/ventas/delete" method="POST" style="display:inline;">
+                    <input type="hidden" name="venta_id" value="${venta.id}">
+                    <button type="submit" onclick="return confirm('¿Estás seguro de que deseas eliminar esta venta?')">Eliminar</button>
                 </form>
-                
-                <h2>Ventas de Hoy</h2>
-                ${ventasTable}
-                <br>
-                <a href="/vendedor/ventas/list">Ver Lista Completa de Ventas</a>
-            </body>
-            </html>
-        `);
+                <a href="/vendedor/ventas/edit/${venta.id}">Editar</a>
+                </li>`;
+            });
+            ventasList += '</ul>';
+
+            let productosList = '';
+            categorias.forEach(categoria => {
+                productosList += `<h2>${categoria}</h2><ul>`;
+                productosPorCategoria[categoria].forEach(producto => {
+                    productosList += `
+                    <li>ID: ${producto.id} - ${producto.nombre} - ${producto.precio} MXN
+                    <form action="/vendedor/ventas/add" method="POST" style="display:inline;">
+                        <input type="hidden" name="producto_id" value="${producto.id}">
+                        <input type="hidden" name="nombre" value="${producto.nombre}">
+                        <input type="hidden" name="precio" value="${producto.precio}">
+                        <input type="number" name="cantidad" placeholder="Cantidad" required>
+                        <button type="submit"><i class="fas fa-cart-plus"></i> Vender</button>
+                    </form></li>`;
+                });
+                productosList += '</ul>';
+            });
+
+            res.send(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Ventas de Hoy</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; background-color: rgba(240, 207, 183, 0.38); }
+                        h2 { color: #327c6e; }
+                        ul { list-style-type: none; padding: 0; }
+                        li { background: #fff; padding: 10px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); }
+                        button { background-color: #327c6e; color: #fff; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+                        button:hover { background-color: #285a4e; }
+                        input { padding: 5px; margin-right: 5px; border-radius: 4px; border: 1px solid #ccc; }
+                        .btn-add { background-color: #327c6e; color: #fff; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; text-decoration: none; }
+                        .btn-add:hover { background-color: #285a4e; }
+                        .add-product-btn, .list-products-btn { 
+                            position: fixed; 
+                            bottom: 20px; 
+                            right: 20px; 
+                            background-color: #327c6e; 
+                            color: #fff; 
+                            border: none; 
+                            border-radius: 50%; 
+                            padding: 15px; 
+                            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); 
+                            cursor: pointer; 
+                            font-size: 24px; 
+                            text-align: center; 
+                            width: 50px; 
+                            height: 50px;
+                            display: flex; 
+                            align-items: center; 
+                            justify-content: center;
+                        }
+                        .add-product-btn:hover, .list-products-btn:hover { background-color: #285a4e; }
+                        .fa-plus, .fa-list { font-size: 24px; }
+                        .list-products-btn { bottom: 80px; }
+                    </style>
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+                </head>
+                <body>
+                    ${productosList}
+                    <hr>
+                    ${ventasList}
+                    <hr>
+                    <a href="/vendedor/productos/add" class="add-product-btn">
+                        <i class="fas fa-plus"></i>
+                    </a>
+                    <a href="/vendedor/productos" class="list-products-btn">
+                        <i class="fas fa-list"></i>
+                    </a>
+                </body>
+                </html>
+            `);
+        });
     });
 });
 
-app.post('/vendedor/ventas', (req, res) => {
-    const { tipo_producto, descripcion, cantidad, precio } = req.body;
 
-    const query = 'INSERT INTO ventas (tipo_producto, descripcion, cantidad, precio, fecha) VALUES (?, ?, ?, ?, NOW())';
-    db.query(query, [tipo_producto, descripcion, cantidad, precio], (err) => {
+
+
+
+// Ruta para procesar la venta
+app.post('/vendedor/ventas/add', (req, res) => {
+    const { producto_id, cantidad, precio } = req.body;
+    const total = cantidad * precio;
+    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date().toTimeString().split(' ')[0]; // Obtener hora actual en formato HH:MM:SS
+
+    // Obtener el nombre del producto usando el ID del producto
+    const getProductQuery = 'SELECT nombre FROM productos WHERE id = ?';
+    
+    db.query(getProductQuery, [producto_id], (err, results) => {
         if (err) {
+            console.error('Error al obtener el nombre del producto:', err);
             res.status(500).send('Error al registrar la venta');
+            return;
+        }
+
+        const nombre_producto = results[0].nombre;
+        
+        const query = 'INSERT INTO ventas (fecha, hora, nombre_producto, cantidad, precio, total) VALUES (?, ?, ?, ?, ?, ?)';
+        
+        db.query(query, [today, now, nombre_producto, cantidad, precio, total], (err) => {
+            if (err) {
+                console.error('Error al registrar la venta:', err);
+                res.status(500).send('Error al registrar la venta');
+                return;
+            }
+            res.redirect('/vendedor/ventas');
+        });
+    });
+});
+
+// Ruta para eliminar una venta
+app.post('/vendedor/ventas/delete', (req, res) => {
+    const { venta_id } = req.body;
+    const query = 'DELETE FROM ventas WHERE id = ?';
+
+    db.query(query, [venta_id], (err) => {
+        if (err) {
+            console.error('Error al eliminar la venta:', err);
+            res.status(500).send('Error al eliminar la venta');
             return;
         }
         res.redirect('/vendedor/ventas');
     });
 });
 
-// Listar ventas
+// Mostrar el formulario para editar una venta
+app.get('/vendedor/ventas/edit/:id', (req, res) => {
+    const ventaId = req.params.id;
+    const query = 'SELECT * FROM ventas WHERE id = ?';
+
+    db.query(query, [ventaId], (err, ventas) => {
+        if (err) {
+            res.status(500).send('Error al obtener la venta');
+            return;
+        }
+
+        if (ventas.length === 0) {
+            res.status(404).send('Venta no encontrada');
+            return;
+        }
+
+        const venta = ventas[0];
+
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Editar Venta</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; background-color: rgba(240, 207, 183, 0.38); }
+                    h2 { color: #327c6e; }
+                    form { background: #fff; padding: 20px; border-radius: 4px; box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); }
+                    label { display: block; margin: 10px 0 5px; }
+                    input { padding: 5px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; width: 100%; }
+                    button { background-color: #327c6e; color: #fff; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 16px; }
+                    button:hover { background-color: #285a4e; }
+                </style>
+            </head>
+            <body>
+                <h2>Editar Venta</h2>
+                <form action="/vendedor/ventas/update" method="POST">
+                    <input type="hidden" name="id" value="${venta.id}">
+                    <label for="descripcion">Nombre del Producto:</label>
+                    <input type="text" id="descripcion" name="descripcion" value="${venta.nombre_producto}" required>
+                    <label for="cantidad">Cantidad:</label>
+                    <input type="number" id="cantidad" name="cantidad" value="${venta.cantidad}" required>
+                    <label for="precio">Precio:</label>
+                    <input type="number" id="precio" name="precio" value="${venta.precio}" required>
+                    <button type="submit">Actualizar Venta</button>
+                </form>
+            </body>
+            </html>
+        `);
+    });
+});
+
+// Ruta para actualizar una venta
+app.post('/vendedor/ventas/update', (req, res) => {
+    const { id, descripcion, cantidad, precio } = req.body;
+    const total = cantidad * precio;
+    const query = 'UPDATE ventas SET nombre_producto = ?, cantidad = ?, precio = ?, total = ? WHERE id = ?';
+
+    db.query(query, [descripcion, cantidad, precio, total, id], (err) => {
+        if (err) {
+            console.error('Error al actualizar la venta:', err);
+            res.status(500).send('Error al actualizar la venta');
+            return;
+        }
+        res.redirect('/vendedor/ventas');
+    });
+});
+
+// Listar productos
+app.get('/vendedor/productos', (req, res) => {
+    const query = 'SELECT * FROM productos';
+    
+    db.query(query, (err, results) => {
+        if (err) {
+            res.status(500).send('Error al obtener los productos');
+            return;
+        }
+
+        let productosList = '<h2>Lista de Productos</h2><ul>';
+        results.forEach(producto => {
+            productosList += `
+            <li>
+                ID: ${producto.id} - ${producto.nombre} - ${producto.precio} MXN
+                <div class="actions">
+                    <a href="/vendedor/productos/edit/${producto.id}" class="btn-edit" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <form action="/vendedor/productos/delete/${producto.id}" method="POST" style="display:inline;">
+                        <button type="submit" class="btn-delete" onclick="return confirm('¿Estás seguro de que deseas eliminar este producto?')" title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </li>`;
+        });
+        productosList += '</ul>';
+
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Lista de Productos</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; background-color: rgba(240, 207, 183, 0.38); }
+                    h2 { color: #327c6e; }
+                    ul { list-style-type: none; padding: 0; }
+                    li { background: #fff; padding: 10px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); position: relative; }
+                    .actions { 
+                        position: absolute; 
+                        right: 10px; 
+                        top: 10px; 
+                        display: flex; 
+                        gap: 10px;
+                    }
+                    .btn-edit, .btn-delete { 
+                        background: none; 
+                        border: none; 
+                        cursor: pointer; 
+                        font-size: 16px; 
+                        color: #327c6e; 
+                    }
+                    .btn-edit:hover { color: #285a4e; }
+                    .btn-delete { 
+                        color: #d9534f; 
+                    }
+                    .btn-delete:hover { color: #c9302c; }
+                    .fa-edit { font-size: 18px; }
+                    .fa-trash { font-size: 18px; }
+                    .add-product-btn { 
+                        position: fixed; 
+                        bottom: 20px; 
+                        right: 20px; 
+                        background-color: #327c6e; 
+                        color: #fff; 
+                        border: none; 
+                        border-radius: 50%; 
+                        padding: 15px; 
+                        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); 
+                        cursor: pointer; 
+                        font-size: 24px; 
+                        text-align: center; 
+                        width: 50px; 
+                        height: 50px;
+                        display: flex; 
+                        align-items: center; 
+                        justify-content: center;
+                    }
+                    .add-product-btn:hover { background-color: #285a4e; }
+                    .fa-plus { font-size: 24px; }
+                </style>
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+            </head>
+            <body>
+                ${productosList}
+                <br>
+                <a href="/vendedor/productos/add" class="add-product-btn">
+                    <i class="fas fa-plus"></i>
+                </a>
+            </body>
+            </html>
+        `);
+    });
+});
+
+// Mostrar el formulario para agregar un nuevo producto
+app.get('/vendedor/productos/add', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Agregar Nuevo Producto</title>
+            <style>
+                body { font-family: Arial, sans-serif; margin: 20px; background-color: rgba(240, 207, 183, 0.38); }
+                h2 { color: #327c6e; }
+                form { background: #fff; padding: 20px; border-radius: 4px; box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); }
+                input, select { padding: 10px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; width: 100%; }
+                button { background-color: #327c6e; color: #fff; border: none; padding: 10px; border-radius: 4px; cursor: pointer; }
+                button:hover { background-color: #285a4e; }
+            </style>
+        </head>
+        <body>
+            <h2>Agregar Nuevo Producto</h2>
+            <form action="/vendedor/productos/add" method="POST">
+                <input type="text" name="nombre" placeholder="Nombre del Producto" required>
+                <input type="number" name="precio" placeholder="Precio" step="0.01" required>
+                <select name="categoria" required>
+                    <option value="" disabled selected>Selecciona una Categoría</option>
+                    <option value="Sandwiches">Sandwiches</option>
+                    <option value="Jochos">Jochos</option>
+                    <option value="Aguas">Aguas</option>
+                    <option value="Refrescos">Refrescos</option>
+                    <option value="Comidas">Comidas</option>
+                    <option value="Jugos">Jugos</option>
+                    <option value="Bebidas Calientes">Bebidas Calientes</option>
+                    <option value="Sincronizadas">Sincronizadas</option>
+                    <option value="Bebidas Frias">Bebidas Frias</option>
+                    <option value="Sodas Italianas">Sodas Italianas</option>
+                    <option value="Malteadas">Malteadas</option>
+                    <option value="Frapes">Frapes</option>
+                    <option value="Frapes">Otros</option>
+                </select>
+                <button type="submit">Agregar Producto</button>
+            </form>
+        </body>
+        </html>
+    `);
+});
+
+// Ruta para procesar la solicitud de agregar un nuevo producto
+app.post('/vendedor/productos/add', (req, res) => {
+    const { nombre, precio, categoria } = req.body;
+    
+    const query = 'INSERT INTO productos (nombre, precio, categoria) VALUES (?, ?, ?)';
+    
+    db.query(query, [nombre, precio, categoria], (err) => {
+        if (err) {
+            console.error('Error al agregar el producto:', err);
+            res.status(500).send('Error al agregar el producto');
+            return;
+        }
+        res.redirect('/vendedor/productos');
+    });
+});
+// Formulario para editar producto
+app.get('/vendedor/productos/edit/:id', (req, res) => {
+    const id = req.params.id;
+    const query = 'SELECT * FROM productos WHERE id = ?';
+
+    db.query(query, [id], (err, results) => {
+        if (err || results.length === 0) {
+            res.status(500).send('Error al obtener los datos del producto');
+            return;
+        }
+
+        const producto = results[0];
+
+        res.send(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Editar Producto</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; background-color: rgba(240, 207, 183, 0.38); }
+                    h2 { color: #327c6e; }
+                    form { background: #fff; padding: 20px; border-radius: 4px; box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); }
+                    input, select { padding: 10px; margin-bottom: 10px; border-radius: 4px; border: 1px solid #ccc; width: 100%; }
+                    button { background-color: #327c6e; color: #fff; border: none; padding: 10px; border-radius: 4px; cursor: pointer; }
+                    button:hover { background-color: #285a4e; }
+                </style>
+            </head>
+            <body>
+                <h2>Editar Producto</h2>
+                <form action="/vendedor/productos/edit/${producto.id}" method="POST">
+                    <input type="text" name="nombre" value="${producto.nombre}" required>
+                    <input type="number" name="precio" value="${producto.precio}" step="0.01" required>
+                    <select name="categoria" required>
+                        <option value="Sandwiches" ${producto.categoria === 'Sandwiches' ? 'selected' : ''}>Sandwiches</option>
+                        <option value="Jochos" ${producto.categoria === 'Jochos' ? 'selected' : ''}>Jochos</option>
+                        <option value="Aguas" ${producto.categoria === 'Aguas' ? 'selected' : ''}>Aguas</option>
+                        <option value="Refrescos" ${producto.categoria === 'Refrescos' ? 'selected' : ''}>Refrescos</option>
+                        <option value="Comidas" ${producto.categoria === 'Comidas' ? 'selected' : ''}>Comidas</option>
+                        <option value="Jugos" ${producto.categoria === 'Jugos' ? 'selected' : ''}>Jugos</option>
+                        <option value="Bebidas Calientes" ${producto.categoria === 'Bebidas Calientes' ? 'selected' : ''}>Bebidas Calientes</option>
+                        <option value="Sincronizadas" ${producto.categoria === 'Sincronizadas' ? 'selected' : ''}>Sincronizadas</option>
+                        <option value="Bebidas Frias" ${producto.categoria === 'Bebidas Frias' ? 'selected' : ''}>Bebidas Frias</option>
+                        <option value="Sodas Italianas" ${producto.categoria === 'Sodas Italianas' ? 'selected' : ''}>Sodas Italianas</option>
+                        <option value="Malteadas" ${producto.categoria === 'Malteadas' ? 'selected' : ''}>Malteadas</option>
+                        <option value="Frapes" ${producto.categoria === 'Frapes' ? 'selected' : ''}>Frapes</option>
+                        <option value="Otros" ${producto.categoria === 'Otros' ? 'selected' : ''}>Otros</option>
+                    </select>
+                    <button type="submit">Actualizar Producto</button>
+                </form>
+                <a href="/vendedor/productos">Volver a la Lista de Productos</a>
+            </body>
+            </html>
+        `);
+    });
+});
+
+//eliminar producto
+app.post('/vendedor/productos/delete/:id', (req, res) => {
+    const id = req.params.id;
+    const query = 'DELETE FROM productos WHERE id = ?';
+
+    db.query(query, [id], (err) => {
+        if (err) {
+            console.error('Error al eliminar el producto:', err);
+            res.status(500).send('Error al eliminar el producto');
+            return;
+        }
+        res.redirect('/vendedor/productos');
+    });
+});
+
+
+
+// Procesar la edición de un producto
+app.post('/vendedor/productos/edit/:id', (req, res) => {
+    const id = req.params.id;
+    const { nombre, precio, categoria } = req.body;
+    const query = 'UPDATE productos SET nombre = ?, precio = ?, categoria = ? WHERE id = ?';
+
+    db.query(query, [nombre, precio, categoria, id], (err) => {
+        if (err) {
+            res.status(500).send('Error al actualizar el producto');
+            return;
+        }
+        res.redirect('/vendedor/productos');
+    });
+});
+
+
+
+
+//lista de venta 
 app.get('/vendedor/ventas/list', (req, res) => {
-    // Obtén el primer y último día del mes actual
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-    // Formatea las fechas a 'YYYY-MM-DD' para la consulta SQL
-    const startDate = firstDayOfMonth.toISOString().split('T')[0];
-    const endDate = lastDayOfMonth.toISOString().split('T')[0];
-
-    // Modifica la consulta SQL para filtrar por el mes actual
-    const query = `SELECT * FROM ventas WHERE fecha BETWEEN ? AND ?`;
-    db.query(query, [startDate, endDate], (err, results) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const ventasQuery = 'SELECT * FROM ventas WHERE fecha = ?';
+    
+    db.query(ventasQuery, [today], (err, ventas) => {
         if (err) {
             res.status(500).send('Error al obtener las ventas');
             return;
         }
 
-        let ventasList = '<h2>Lista de Ventas de este Mes</h2><ul>';
-        results.forEach(venta => {
+        let ventasList = '<h2>Ventas de Hoy</h2><ul>';
+        ventas.forEach(venta => {
             ventasList += `
-            <li>ID: ${venta.id} - ${venta.tipo_producto} - ${venta.descripcion} - ${venta.cantidad} - ${venta.precio} MXN - ${venta.total} MXN - ${new Date(venta.fecha).toLocaleString()}
-            <a href="/vendedor/ventas/edit/${venta.id}">Editar</a>
-            <form action="/vendedor/ventas/delete/${venta.id}" method="POST" style="display:inline;">
-                <button type="submit" onclick="return confirm('¿Estás seguro de que deseas eliminar esta venta?')">Eliminar</button>
-            </form></li>`;
+            <li>ID: ${venta.id} - Nombre: ${venta.descripcion} - Cantidad: ${venta.cantidad} - Total: ${venta.total} MXN
+            </li>`;
         });
         ventasList += '</ul>';
 
@@ -1122,54 +1445,17 @@ app.get('/vendedor/ventas/list', (req, res) => {
             <html>
             <head>
                 <title>Lista de Ventas</title>
-                <link rel="shortcut icon" href="/image.png" type="image/x-icon">
                 <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        margin: 0;
-                        padding: 20px;
-                        background-color: rgba(240, 207, 183, 0.38);
-                    }
-                    h2 {
-                        color: #327c6e;
-                    }
-                    ul {
-                        list-style-type: none;
-                        padding: 0;
-                    }
-                    li {
-                        background: #fff;
-                        padding: 10px;
-                        margin-bottom: 10px;
-                        border-radius: 4px;
-                        box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-                    }
-                    a {
-                        color: #327c6e;
-                        text-decoration: none;
-                        margin-left: 10px;
-                    }
-                    a:hover {
-                        text-decoration: underline;
-                    }
-                    button {
-                        background-color: #d9534f;
-                        color: #fff;
-                        border: none;
-                        padding: 5px 10px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 14px;
-                    }
-                    button:hover {
-                        background-color: #c9302c;
-                    }
+                    body { font-family: Arial, sans-serif; margin: 20px; background-color: rgba(240, 207, 183, 0.38); }
+                    h2 { color: #327c6e; }
+                    ul { list-style-type: none; padding: 0; }
+                    li { background: #fff; padding: 10px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 0 5px rgba(0, 0, 0, 0.1); }
                 </style>
             </head>
             <body>
                 ${ventasList}
                 <br>
-                <a href="/vendedor/ventas">Volver a Registrar Ventas</a>
+                <a href="/vendedor">Volver al Menú</a>
             </body>
             </html>
         `);
@@ -1177,122 +1463,6 @@ app.get('/vendedor/ventas/list', (req, res) => {
 });
 
 
-// Editar venta
-app.get('/vendedor/ventas/edit/:id', (req, res) => {
-    const id = req.params.id;
-    const query = 'SELECT * FROM ventas WHERE id = ?';
-    
-    db.query(query, [id], (err, results) => {
-        if (err || results.length === 0) {
-            res.status(500).send('Error al obtener los datos de la venta');
-            return;
-        }
-        
-        const venta = results[0];
-
-        res.send(`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Editar Venta</title>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        margin: 0;
-                        padding: 20px;
-                        background-color: rgba(240, 207, 183, 0.38);
-                    }
-                    h2 {
-                        color: #327c6e;
-                    }
-                    form {
-                        background: #fff;
-                        padding: 20px;
-                        border-radius: 5px;
-                        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                        margin-bottom: 20px;
-                    }
-                    label {
-                        display: block;
-                        margin-bottom: 8px;
-                        color: #327c6e;
-                    }
-                    input[type="text"], input[type="number"], select {
-                        width: 100%;
-                        padding: 8px;
-                        margin-bottom: 10px;
-                        border: 1px solid #ccc;
-                        border-radius: 4px;
-                    }
-                    button {
-                        background-color: #327c6e;
-                        color: #fff;
-                        border: none;
-                        padding: 10px 15px;
-                        border-radius: 4px;
-                        cursor: pointer;
-                        font-size: 16px;
-                    }
-                    button:hover {
-                        background-color: #285a4e;
-                    }
-                </style>
-            </head>
-            <body>
-                <h2>Editar Venta</h2>
-                <form action="/vendedor/ventas/edit/${venta.id}" method="POST">
-                    <label for="tipo_producto">Tipo de Producto:</label>
-                    <select id="tipo_producto" name="tipo_producto" required>
-                        <option value="bebida" ${venta.tipo_producto === 'bebida' ? 'selected' : ''}>Bebida</option>
-                        <option value="comida" ${venta.tipo_producto === 'comida' ? 'selected' : ''}>Comida</option>
-                    </select>
-                    <br>
-                    <label for="descripcion">Descripción:</label>
-                    <input type="text" id="descripcion" name="descripcion" value="${venta.descripcion}" required>
-                    <br>
-                    <label for="cantidad">Cantidad:</label>
-                    <input type="number" id="cantidad" name="cantidad" value="${venta.cantidad}" required>
-                    <br>
-                    <label for="precio">Precio:</label>
-                    <input type="number" id="precio" name="precio" step="0.01" value="${venta.precio}" required>
-                    <br>
-                    <button type="submit">Actualizar Venta</button>
-                </form>
-                <a href="/vendedor/ventas/list">Volver a la Lista de Ventas</a>
-            </body>
-            </html>
-        `);
-    });
-});
-
-// Actualizar venta
-app.post('/vendedor/ventas/edit/:id', (req, res) => {
-    const id = req.params.id;
-    const { tipo_producto, descripcion, cantidad, precio } = req.body;
-
-    const query = 'UPDATE ventas SET tipo_producto = ?, descripcion = ?, cantidad = ?, precio = ? WHERE id = ?';
-    db.query(query, [tipo_producto, descripcion, cantidad, precio, id], (err) => {
-        if (err) {
-            res.status(500).send('Error al actualizar la venta');
-            return;
-        }
-        res.redirect('/vendedor/ventas/list');
-    });
-});
-
-// Eliminar venta
-app.post('/vendedor/ventas/delete/:id', (req, res) => {
-    const id = req.params.id;
-    const query = 'DELETE FROM ventas WHERE id = ?';
-
-    db.query(query, [id], (err) => {
-        if (err) {
-            res.status(500).send('Error al eliminar la venta');
-            return;
-        }
-        res.redirect('/vendedor/ventas/list');
-    });
-});
 
 
 app.get('/vendedor/insumos', (req, res) => {
@@ -1549,6 +1719,54 @@ app.get('/admin/reports', (req, res) => {
         <html>
         <head>
             <title>Generar Reportes</title>
+            <style>
+                body { 
+                    font-family: Arial, sans-serif; 
+                    background-color: rgba(240, 207, 183, 0.38); 
+                    margin: 0; 
+                    padding: 20px; 
+                    color: #333; 
+                }
+                h2 { 
+                    color: #327c6e; 
+                }
+                form { 
+                    background: #fff; 
+                    padding: 20px; 
+                    border-radius: 8px; 
+                    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); 
+                    max-width: 400px; 
+                    margin: 0 auto; 
+                }
+                label { 
+                    display: block; 
+                    margin-bottom: 10px; 
+                    font-weight: bold; 
+                }
+                input[type="month"] { 
+                    padding: 10px; 
+                    border-radius: 4px; 
+                    border: 1px solid #ccc; 
+                    width: calc(100% - 22px); 
+                    margin-bottom: 20px; 
+                }
+                button { 
+                    background-color: #327c6e; 
+                    color: #fff; 
+                    border: none; 
+                    padding: 10px 15px; 
+                    border-radius: 4px; 
+                    cursor: pointer; 
+                    font-size: 16px; 
+                    margin-right: 10px; 
+                }
+                button:hover { 
+                    background-color: #285a4e; 
+                }
+                button:last-child { 
+                    margin-right: 0; 
+                }
+            </style>
         </head>
         <body>
             <h2>Generar Reportes</h2>
@@ -1564,6 +1782,7 @@ app.get('/admin/reports', (req, res) => {
     `);
 });
 
+
 // Ruta para generar el reporte
 app.post('/admin/reports/generate', (req, res) => {
     const { month } = req.body;
@@ -1573,7 +1792,7 @@ app.post('/admin/reports/generate', (req, res) => {
     const formattedMonth = monthNumber.padStart(2, '0'); // Formatea el mes a dos dígitos
 
     // Ajusta las consultas SQL para utilizar la columna 'fecha' y 'timestamp'
-    const queryVentas = `SELECT * FROM ventas WHERE DATE_FORMAT(fecha, '%Y-%m') = '${year}-${formattedMonth}'`;
+    const queryVentas = `SELECT id, nombre_producto, cantidad, precio, total, fecha FROM ventas WHERE DATE_FORMAT(fecha, '%Y-%m') = '${year}-${formattedMonth}'`;
     const queryInsumos = `SELECT * FROM insumos WHERE DATE_FORMAT(fecha, '%Y-%m') = '${year}-${formattedMonth}'`;
     const queryPayments = `SELECT * FROM payments WHERE DATE_FORMAT(timestamp, '%Y-%m') = '${year}-${formattedMonth}'`;
 
@@ -1642,8 +1861,7 @@ function generateReportHTML(ventas, insumos, payments, ganancias) {
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Tipo de Producto</th>
-                        <th>Descripción</th>
+                        <th>Nombre</th>
                         <th>Cantidad</th>
                         <th>Precio</th>
                         <th>Total</th>
@@ -1654,8 +1872,7 @@ function generateReportHTML(ventas, insumos, payments, ganancias) {
                     ${ventas.map(venta => `
                         <tr>
                             <td>${venta.id}</td>
-                            <td>${venta.tipo_producto}</td>
-                            <td>${venta.descripcion}</td>
+                            <td>${venta.nombre_producto}</td>
                             <td>${venta.cantidad}</td>
                             <td>${venta.precio}</td>
                             <td>${venta.total}</td>
