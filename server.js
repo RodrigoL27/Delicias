@@ -18,6 +18,9 @@ const db = mysql.createConnection({
     password: 'UcaSSP9O7sv5Rq8knpUr',
     database: 'blb6ywtxsd36c0o6mgqy'
   });
+
+
+  
 db.connect((err) => {
     if (err) {
         throw err;
